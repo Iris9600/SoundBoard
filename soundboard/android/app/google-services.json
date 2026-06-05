@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "686569559624",
+    "project_id": "soundboard-95778",
+    "storage_bucket": "soundboard-95778.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:686569559624:android:2b90d0f0ea1c33ab62aa7d",
+        "android_client_info": {
+          "package_name": "com.example.soundboard"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3AvSGJ-CwFxefmx_moJ4sHQovjtehs6k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
