@@ -1,11 +1,11 @@
 import 'dart:convert'; // 用于 Base64 编码
-import 'dart:io';
-import 'dart:typed_data'; 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'device_identity.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,14 +22,65 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Audio',
       theme: ThemeData(primarySwatch: Colors.deepPurple, useMaterial3: true),
-      home: const MainPage(),
+      home: const DeviceGate(),
     );
   }
 }
 
 //  MainPage
+class DeviceGate extends StatefulWidget {
+  const DeviceGate({super.key});
+
+  @override
+  State<DeviceGate> createState() => _DeviceGateState();
+}
+
+class _DeviceGateState extends State<DeviceGate> {
+  late Future<String> _deviceId;
+
+  @override
+  void initState() {
+    super.initState();
+    _deviceId = DeviceIdentity.loadOrCreate();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _deviceId,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Unable to identify this device. Please retry.'),
+                  ElevatedButton(
+                    onPressed: () => setState(() {
+                      _deviceId = DeviceIdentity.loadOrCreate();
+                    }),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return MainPage(deviceId: snapshot.data!);
+      },
+    );
+  }
+}
+
 class MainPage extends StatelessWidget {
-  const MainPage({super.key});
+  final String deviceId;
+  const MainPage({super.key, required this.deviceId});
 
   @override
   Widget build(BuildContext context) {
@@ -43,16 +94,22 @@ class MainPage extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const UploadPage()),
+                MaterialPageRoute(
+                  builder: (context) => UploadPage(deviceId: deviceId),
+                ),
               );
             },
-          )
+          ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('Sound').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection(DeviceIdentity.soundsPath(deviceId))
+            .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -62,14 +119,15 @@ class MainPage extends StatelessWidget {
           if (docs.isEmpty) {
             return const Center(child: Text('Upload file to create'));
           }
-  
+
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
               return AudioPlayerCard(
+                key: ValueKey(docs[index].id),
                 name: data['name'] ?? 'Unknown',
-                audioData: data['url'] ?? '', 
+                audioData: data['url'] ?? '',
               );
             },
           );
@@ -81,9 +139,13 @@ class MainPage extends StatelessWidget {
 
 class AudioPlayerCard extends StatefulWidget {
   final String name;
-  final String audioData; 
+  final String audioData;
 
-  const AudioPlayerCard({super.key, required this.name, required this.audioData});
+  const AudioPlayerCard({
+    super.key,
+    required this.name,
+    required this.audioData,
+  });
 
   @override
   State<AudioPlayerCard> createState() => _AudioPlayerCardState();
@@ -95,29 +157,32 @@ class _AudioPlayerCardState extends State<AudioPlayerCard> {
 
   @override
   void dispose() {
-    _audioPlayer.dispose(); 
+    _audioPlayer.dispose();
     super.dispose();
   }
 
   void _togglePlay() async {
     if (isPlaying) {
       await _audioPlayer.pause();
+      if (!mounted) return;
       setState(() => isPlaying = false);
     } else {
       if (widget.audioData.isNotEmpty) {
         try {
-
-          if (!widget.audioData.startsWith('http') && !widget.audioData.startsWith('https')) {
-
+          if (!widget.audioData.startsWith('http') &&
+              !widget.audioData.startsWith('https')) {
             Uint8List audioBytes = base64Decode(widget.audioData);
             await _audioPlayer.play(BytesSource(audioBytes));
           } else {
-
             await _audioPlayer.play(UrlSource(widget.audioData));
           }
+          if (!mounted) return;
           setState(() => isPlaying = true);
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('播放失败: $e')));
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('播放失败: $e')));
         }
       }
     }
@@ -136,10 +201,15 @@ class _AudioPlayerCardState extends State<AudioPlayerCard> {
           isPlaying ? Icons.volume_up : Icons.volume_mute,
           color: Colors.deepPurple,
         ),
-        title: Text(widget.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          widget.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: const Text('Click to play'),
         trailing: IconButton(
-          icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill),
+          icon: Icon(
+            isPlaying ? Icons.pause_circle_filled : Icons.play_circle_fill,
+          ),
           iconSize: 36,
           color: Colors.deepPurple,
           onPressed: _togglePlay,
@@ -151,7 +221,8 @@ class _AudioPlayerCardState extends State<AudioPlayerCard> {
 
 // Upload Page
 class UploadPage extends StatefulWidget {
-  const UploadPage({super.key});
+  final String deviceId;
+  const UploadPage({super.key, required this.deviceId});
 
   @override
   State<UploadPage> createState() => _UploadPageState();
@@ -159,40 +230,66 @@ class UploadPage extends StatefulWidget {
 
 class _UploadPageState extends State<UploadPage> {
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _urlController = TextEditingController(); 
-  
+
   Uint8List? _selectedFileBytes;
   String? _selectedFileName;
   bool _isUploading = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.pickFiles(
-        type: FileType.audio, 
-        withData: true,      
+        type: FileType.audio,
+        withData: true,
       );
 
       if (result != null && result.files.single.bytes != null) {
+        if (!mounted) return;
         setState(() {
           _selectedFileBytes = result.files.single.bytes;
           _selectedFileName = result.files.single.name;
-          _urlController.clear(); 
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('选择文件失败: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('选择文件失败: $e')));
+      }
     }
   }
 
   Future<void> _uploadAndSave() async {
     final name = _nameController.text.trim();
-    final manualUrl = _urlController.text.trim();
+    if (_isUploading) return;
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a name')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter a name')));
       return;
     }
 
+    if (_selectedFileBytes == null || _selectedFileBytes!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an audio file')),
+      );
+      return;
+    }
+    // Base64 increases the size by a third; leave room for Firestore metadata.
+    if (_selectedFileBytes!.length > 700 * 1024) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a file smaller than 700 KB'),
+        ),
+      );
+      return;
+    }
     setState(() => _isUploading = true);
 
     try {
@@ -201,22 +298,29 @@ class _UploadPageState extends State<UploadPage> {
         finalAudioData = base64Encode(_selectedFileBytes!);
       }
 
-      await FirebaseFirestore.instance.collection('Sound').add({
-        'name': name,
-        'url': finalAudioData,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseFirestore.instance
+          .collection(DeviceIdentity.soundsPath(widget.deviceId))
+          .add({
+            'deviceId': widget.deviceId,
+            'name': name,
+            'url': finalAudioData,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Success')));
-        Navigator.pop(context); 
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Success')));
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
-      setState(() => _isUploading = false);
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -238,14 +342,18 @@ class _UploadPageState extends State<UploadPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // 选项一：直接选本地音频转成 Base64
               ElevatedButton.icon(
                 onPressed: _isUploading ? null : _pickFile,
                 icon: const Icon(Icons.audio_file),
-                label: Text(_selectedFileName == null ? 'Select Local File (Max 1MB)' : 'Selected: $_selectedFileName'),
+                label: Text(
+                  _selectedFileName == null
+                      ? 'Select Local File (Max 700 KB)'
+                      : 'Selected: $_selectedFileName',
+                ),
               ),
-              
+
               const SizedBox(height: 20),
               _isUploading
                   ? const Center(child: CircularProgressIndicator())
