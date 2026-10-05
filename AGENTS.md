@@ -8,6 +8,9 @@ These instructions record the repository owner's preferences for work in this re
 - Prepare changes and run the relevant checks so the owner can inspect them in VS Code.
 - Wait for the owner's explicit confirmation of the changes before creating commits or pushing them to GitHub. Silence, completed tests, or an approval to run a sandbox command is not approval of the code changes.
 - Push confirmed changes to `origin/D-Time`, never directly to the default branch.
+- Target repository: `https://github.com/Iris9600/SoundBoard` (confirmed by the owner).
+- The owner authorized automatic pushes of already committed changes at 12:00 noon and 00:00 midnight Malaysia time (`Asia/Kuala_Lumpur`, UTC+08:00). This does not authorize committing unconfirmed edits.
+- Authenticate automated pushes as `Solar-owo`, verify that account and its accepted write access before pushing, and never use force-push.
 - Scope each commit to the approved work. Exclude Firebase data exports, login credentials, local backup configuration/logs and unrelated repositories such as the separate `Developing-skill` checkout.
 - After pushing, report the branch, commit and checks so the owner can review and merge.
 

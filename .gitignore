@@ -1,2 +1,5 @@
 # Separate GitHub repository checked out locally.
 /Developing-skill/
+
+# Local scheduled Git push logs and deletion backups.
+/.git-sync/
