@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Private Firebase data exports and migration backups.
+/.firebase-data-backups/
+
 # Symbolication related
 app.*.symbols
 

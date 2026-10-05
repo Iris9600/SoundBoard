@@ -39,8 +39,11 @@ dependencies:
   cloud_firestore: ^6.5.0
   audioplayers: ^6.7.1
   firebase_storage: ^13.4.2
+  shared_preferences: ^2.5.4
+  device_info_plus: 12.4.0
 
 dev_dependencies:
+  shared_preferences_platform_interface: ^2.4.1
   flutter_test:
     sdk: flutter
 
@@ -50,6 +53,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  fake_cloud_firestore: ^4.3.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
