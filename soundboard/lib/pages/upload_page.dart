@@ -5,7 +5,12 @@ import '../services/sound_repository.dart';
 
 class UploadPage extends StatefulWidget {
   final String deviceId;
-  const UploadPage({super.key, required this.deviceId});
+  final String deviceName;
+  const UploadPage({
+    super.key,
+    required this.deviceId,
+    required this.deviceName,
+  });
 
   @override
   State<UploadPage> createState() => _UploadPageState();
@@ -61,6 +66,7 @@ class _UploadPageState extends State<UploadPage> {
     try {
       await SoundRepository(
         deviceId: widget.deviceId,
+        deviceName: widget.deviceName,
       ).save(name: name, file: _selectedFile!);
 
       if (mounted) {

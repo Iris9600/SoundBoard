@@ -10,15 +10,24 @@ class SoundRepository {
   static const maxAudioBytes = 700 * 1024;
 
   final String deviceId;
+  final String deviceName;
   final FirebaseFirestore? _firestore;
 
-  SoundRepository({required this.deviceId, FirebaseFirestore? firestore})
-    : _firestore = firestore;
+  SoundRepository({
+    required this.deviceId,
+    required this.deviceName,
+    FirebaseFirestore? firestore,
+  }) : _firestore = firestore {
+    DeviceIdentity.soundsPath(deviceId);
+    if (deviceName.trim().isEmpty) {
+      throw ArgumentError.value(deviceName, 'deviceName', 'Name is required');
+    }
+  }
+
+  FirebaseFirestore get _database => _firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _sounds =>
-      (_firestore ?? FirebaseFirestore.instance).collection(
-        DeviceIdentity.soundsPath(deviceId),
-      );
+      _database.collection(DeviceIdentity.soundsPath(deviceId));
 
   Stream<List<Sound>> watchSounds() => _sounds.snapshots().map(
     (snapshot) => snapshot.docs
@@ -43,11 +52,19 @@ class SoundRepository {
   }) async {
     final error = validateUpload(name, file);
     if (error != null) throw ArgumentError(error);
-    await _sounds.add({
+    final batch = _database.batch();
+    batch.set(_database.collection('devices').doc(deviceId), {
       'deviceId': deviceId,
+      'deviceName': deviceName.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    batch.set(_sounds.doc(), {
+      'deviceId': deviceId,
+      'deviceName': deviceName.trim(),
       'name': name.trim(),
       'url': base64Encode(file.bytes),
       'createdAt': FieldValue.serverTimestamp(),
     });
+    await batch.commit();
   }
 }
