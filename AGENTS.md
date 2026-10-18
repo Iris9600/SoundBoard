@@ -6,12 +6,12 @@ These instructions record the repository owner's preferences for work in this re
 
 - Use `D-Time` as the working branch for changes prepared by the assistant.
 - Prepare changes and run the relevant checks so the owner can inspect them in VS Code.
-- Wait for the owner's explicit confirmation of the changes before creating commits or pushing them to GitHub. Silence, completed tests, or an approval to run a sandbox command is not approval of the code changes.
-- Push confirmed changes to `origin/D-Time`, never directly to the default branch.
+- The owner authorizes automatic commits and pushes of eligible repository code changes every hour, including current uncommitted code changes. Individual confirmation is no longer required for these commits and pushes.
+- Push changes to `origin/D-Time`, never directly to `main` or the default branch. Open or reuse a pull request from `D-Time` to `main` for owner review.
 - Target repository: `https://github.com/Iris9600/SoundBoard` (confirmed by the owner).
-- The owner authorized automatic pushes of already committed changes at 12:00 noon and 00:00 midnight Malaysia time (`Asia/Kuala_Lumpur`, UTC+08:00). This does not authorize committing unconfirmed edits.
+- Run hourly on the hour in Malaysia time (`Asia/Kuala_Lumpur`, UTC+08:00). If there are no eligible changes or pending push/PR retries, do nothing. This replaces the previous noon/midnight schedule.
 - Authenticate automated pushes as `Solar-owo`, verify that account and its accepted write access before pushing, and never use force-push.
-- Scope each commit to the approved work. Exclude Firebase data exports, login credentials, local backup configuration/logs and unrelated repositories such as the separate `Developing-skill` checkout.
+- Scope automated commits to repository code, build definitions and documentation. Exclude Firebase data exports, login credentials, local backup configuration/logs and unrelated repositories such as the separate `Developing-skill` checkout. Stop when excluded files are staged or a Git operation is unfinished.
 - After pushing, report the branch, commit and checks so the owner can review and merge.
 
 ## Review and merge
@@ -26,7 +26,7 @@ These instructions record the repository owner's preferences for work in this re
 - The assistant's requested contribution display name is `Solar`.
 - GitHub account: `Solar-owo`.
 - Commit email: `338115045+Solar-owo@users.noreply.github.com` (provided by the owner).
-- After the owner approves the work, create assistant commits using `git -c user.name=Solar -c user.email=338115045+Solar-owo@users.noreply.github.com commit ...`. These per-command settings attribute both author and committer to Solar without changing the owner's Git configuration.
+- Create assistant and authorized hourly commits using `git -c user.name=Solar -c user.email=338115045+Solar-owo@users.noreply.github.com commit ...`. These per-command settings attribute both author and committer to Solar without changing the owner's Git configuration.
 - For assistant-created commits, use a per-commit author identity rather than changing the owner's global Git identity or the identity of their manual VS Code commits.
 - Use only the Solar identity above for assistant contributions. Do not invent an account/email or use another person's account.
 - Do not claim that the author display name alone creates a GitHub account, contributor avatar or collaborator permission.

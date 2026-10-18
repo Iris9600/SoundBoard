@@ -2,32 +2,27 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/selected_audio_file.dart';
 import '../models/sound.dart';
-import 'device_identity.dart';
+import 'name_identity.dart';
 
-/// Owns persistence and upload rules for one device's sounds.
+/// Owns persistence and upload rules for one named library.
 class SoundRepository {
   // Base64 increases size by a third; leave room for Firestore metadata.
   static const maxAudioBytes = 700 * 1024;
 
-  final String deviceId;
-  final String deviceName;
+  final String userName;
+  late final String libraryId = NameIdentity.idFor(userName);
   final FirebaseFirestore? _firestore;
 
-  SoundRepository({
-    required this.deviceId,
-    required this.deviceName,
-    FirebaseFirestore? firestore,
-  }) : _firestore = firestore {
-    DeviceIdentity.soundsPath(deviceId);
-    if (deviceName.trim().isEmpty) {
-      throw ArgumentError.value(deviceName, 'deviceName', 'Name is required');
-    }
+  SoundRepository({required this.userName, FirebaseFirestore? firestore})
+    : _firestore = firestore {
+    NameIdentity.idFor(userName);
   }
 
   FirebaseFirestore get _database => _firestore ?? FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _sounds =>
-      _database.collection(DeviceIdentity.soundsPath(deviceId));
+      // Keep the existing collection location for saved name-based libraries.
+      _database.collection('devices/$libraryId/sounds');
 
   Stream<List<Sound>> watchSounds() => _sounds.snapshots().map(
     (snapshot) => snapshot.docs
@@ -53,14 +48,14 @@ class SoundRepository {
     final error = validateUpload(name, file);
     if (error != null) throw ArgumentError(error);
     final batch = _database.batch();
-    batch.set(_database.collection('devices').doc(deviceId), {
-      'deviceId': deviceId,
-      'deviceName': deviceName.trim(),
+    batch.set(_database.collection('devices').doc(libraryId), {
+      'libraryId': libraryId,
+      'userName': NameIdentity.normalize(userName),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
     batch.set(_sounds.doc(), {
-      'deviceId': deviceId,
-      'deviceName': deviceName.trim(),
+      'libraryId': libraryId,
+      'userName': NameIdentity.normalize(userName),
       'name': name.trim(),
       'url': base64Encode(file.bytes),
       'createdAt': FieldValue.serverTimestamp(),
