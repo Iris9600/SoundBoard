@@ -5,25 +5,33 @@ import '../widgets/audio_player_card.dart';
 import 'upload_page.dart';
 
 class MainPage extends StatelessWidget {
-  final String deviceId;
-  final String deviceName;
-  const MainPage({super.key, required this.deviceId, required this.deviceName});
+  final String userName;
+  final VoidCallback? onSwitchName;
+  const MainPage({super.key, required this.userName, this.onSwitchName});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Sound Board · $deviceName'),
+        title: Text('Sound Board · $userName'),
         backgroundColor: Colors.blueGrey,
         actions: [
+          if (onSwitchName != null)
+            IconButton(
+              tooltip: 'Switch name',
+              onPressed: onSwitchName,
+              icon: const Icon(Icons.logout),
+            ),
           IconButton(
-            tooltip: 'Device details',
+            tooltip: 'Library details',
             icon: const Icon(Icons.devices),
             onPressed: () => showDialog<void>(
               context: context,
               builder: (context) => AlertDialog(
-                title: const Text('This device'),
-                content: SelectableText('$deviceName\n\nDevice ID: $deviceId'),
+                title: const Text('Your library'),
+                content: SelectableText(
+                  '$userName\n\nUse this name on another device to open the same sounds.',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -39,8 +47,7 @@ class MainPage extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      UploadPage(deviceId: deviceId, deviceName: deviceName),
+                  builder: (context) => UploadPage(userName: userName),
                 ),
               );
             },
@@ -48,10 +55,7 @@ class MainPage extends StatelessWidget {
         ],
       ),
       body: StreamBuilder<List<Sound>>(
-        stream: SoundRepository(
-          deviceId: deviceId,
-          deviceName: deviceName,
-        ).watchSounds(),
+        stream: SoundRepository(userName: userName).watchSounds(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));

@@ -1,0 +1,47 @@
+rules_version = '2';
+
+// Name-only libraries are shared by anyone who knows the name.
+// Legacy device libraries and every unrelated collection remain inaccessible.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function namedLibrary(id) {
+      return id.matches('name_[A-Za-z0-9_-]{1,427}');
+    }
+
+    function validOwner(data, id) {
+      return data.libraryId == id
+        && data.userName is string
+        && data.userName.size() > 0
+        && data.userName.size() <= 80
+        && id == 'name_' + data.userName.lower().toUtf8().toBase64().replace('=', '');
+    }
+
+    match /devices/{libraryId} {
+      // Registration must be able to read a missing name to check availability.
+      allow get: if namedLibrary(libraryId);
+      allow create: if namedLibrary(libraryId)
+        && validOwner(request.resource.data, libraryId)
+        && request.resource.data.keys().hasOnly(['libraryId', 'userName', 'createdAt'])
+        && request.resource.data.createdAt == request.time;
+      allow update: if namedLibrary(libraryId)
+        && validOwner(request.resource.data, libraryId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['libraryId', 'userName', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time;
+
+      match /sounds/{soundId} {
+        allow read: if namedLibrary(libraryId);
+        allow create: if namedLibrary(libraryId)
+          && exists(/databases/$(database)/documents/devices/$(libraryId))
+          && validOwner(request.resource.data, libraryId)
+          && request.resource.data.keys().hasOnly(['libraryId', 'userName', 'name', 'url', 'createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.url is string
+          && request.resource.data.url.size() > 0
+          && request.resource.data.url.size() <= 955736
+          && request.resource.data.createdAt == request.time;
+      }
+    }
+  }
+}

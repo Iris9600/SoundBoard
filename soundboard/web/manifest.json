@@ -1,12 +1,12 @@
 {
-    "name": "soundboard",
-    "short_name": "soundboard",
+    "name": "SoundBoard Web App",
+    "short_name": "SoundBoard",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#F5F3FA",
+    "theme_color": "#673AB7",
+    "description": "Upload, find and play your sounds in your browser.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

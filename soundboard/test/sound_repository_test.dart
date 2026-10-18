@@ -5,34 +5,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:soundboard/models/selected_audio_file.dart';
 import 'package:soundboard/models/sound.dart';
 import 'package:soundboard/services/sound_repository.dart';
+import 'package:soundboard/services/name_identity.dart';
 
 void main() {
-  const firstId = '11111111111111111111111111111111';
-  const secondId = '22222222222222222222222222222222';
+  final firstId = NameIdentity.idFor('SHao');
   SelectedAudioFile file(int size) =>
       SelectedAudioFile(name: 'sound.mp3', bytes: Uint8List(size));
 
   test(
-    'uploads register the named device and isolate its sound data',
+    'uploads record only a name-based library and isolate other names',
     () async {
       final database = FakeFirebaseFirestore();
-      final first = SoundRepository(
-        deviceId: firstId,
-        deviceName: 'SHao',
-        firestore: database,
-      );
-      final second = SoundRepository(
-        deviceId: secondId,
-        deviceName: 'SHao',
-        firestore: database,
-      );
+      final first = SoundRepository(userName: 'SHao', firestore: database);
+      final second = SoundRepository(userName: 'Alice', firestore: database);
       await first.save(name: ' Bell ', file: file(4));
       final profile = await database.doc('devices/$firstId').get();
-      expect(profile.data()?['deviceName'], 'SHao');
-      expect(profile.data()?['deviceId'], firstId);
+      expect(profile.data()?['userName'], 'SHao');
+      expect(profile.data()?['libraryId'], firstId);
+      expect(profile.data(), isNot(contains('deviceId')));
+      expect(profile.data(), isNot(contains('deviceName')));
       final sounds = await database.collection('devices/$firstId/sounds').get();
-      expect(sounds.docs.single.data()['deviceId'], firstId);
-      expect(sounds.docs.single.data()['deviceName'], 'SHao');
+      expect(sounds.docs.single.data()['libraryId'], firstId);
+      expect(sounds.docs.single.data()['userName'], 'SHao');
+      expect(sounds.docs.single.data(), isNot(contains('deviceId')));
+      expect(sounds.docs.single.data(), isNot(contains('deviceName')));
       expect(sounds.docs.single.data()['name'], 'Bell');
       expect(
         base64Decode(sounds.docs.single.data()['url'] as String),
@@ -44,13 +40,9 @@ void main() {
     },
   );
 
-  test('invalid upload creates neither a device nor a sound', () async {
+  test('invalid upload creates neither a library nor a sound', () async {
     final database = FakeFirebaseFirestore();
-    final repository = SoundRepository(
-      deviceId: firstId,
-      deviceName: 'SHao',
-      firestore: database,
-    );
+    final repository = SoundRepository(userName: 'SHao', firestore: database);
     await expectLater(
       repository.save(name: '', file: file(1)),
       throwsArgumentError,
@@ -62,15 +54,8 @@ void main() {
     );
   });
 
-  test('device ownership rejects invalid IDs and empty names', () {
-    expect(
-      () => SoundRepository(deviceId: 'SHao', deviceName: 'SHao'),
-      throwsArgumentError,
-    );
-    expect(
-      () => SoundRepository(deviceId: firstId, deviceName: ' '),
-      throwsArgumentError,
-    );
+  test('library requires a valid name', () {
+    expect(() => SoundRepository(userName: ' '), throwsArgumentError);
   });
 
   test('upload requires a name and nonempty audio', () {

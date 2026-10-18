@@ -1,6 +1,10 @@
 ﻿# Soundboard
 
-A Flutter soundboard with persistent installation identity. Each device reads and uploads sounds under `devices/{deviceId}/sounds` in Firestore. Uploads atomically create/update the parent device record and store both `deviceId` and `deviceName` on the sound. Names are display labels; two devices with the same name still have separate IDs.
+A Flutter soundboard with name-based libraries. Enter a name to open its sounds; capitalization and repeated spaces are ignored. No password is required. Anyone using the same name can access that library. Check **Remember me** to reopen it automatically on this browser or installation; leave it unchecked to enter a name next launch. **Switch name** clears the remembered name and returns to entry.
+
+**Login** is selected by default and checks that the name exists in Firestore, including when restoring a remembered name. **Register** immediately creates a profile in Firestore and opens its empty library; duplicate names are rejected using a transaction. Remember me appears only under Login. Existing name-based library profiles also count as registered names. Connection or permission errors keep the entry screen open.
+
+Library IDs use a `name_` prefix and a URL-safe encoding of the normalized name. The existing Firestore collection location `devices/{libraryId}/sounds` is retained for saved-library compatibility; its historical label no longer represents a device. New records contain only `libraryId` and `userName` ownership metadata. The app does not collect hardware names or create installation IDs, and removes the old saved installation ID at startup. Old device libraries are preserved but require an explicit migration to appear under a name. This selector does not provide Firebase authentication or change security rules.
 
 ## Code organization
 
@@ -9,8 +13,7 @@ A Flutter soundboard with persistent installation identity. Each device reads an
 - `lib/models/`: Stored sounds and selected audio file data.
 - `lib/pages/`: Identity loading, sound list, and upload form.
 - `lib/widgets/`: Reusable audio player card.
-- `lib/services/device_identity.dart`: Persistent installation identity.
-- `lib/services/device_name.dart`: Platform device display name.
+- `lib/services/name_identity.dart`: Name-based library selection and optional remembered name.
 - `lib/services/sound_repository.dart`: Firestore access and upload validation.
 - `lib/services/audio_file_picker.dart`: Platform file selection.
 - `lib/services/audio_playback_controller.dart`: Player state and resource lifecycle.
@@ -22,6 +25,29 @@ Existing Firestore fields and Base64/URL playback remain supported. Raw audio up
 
 ## Verification
 
+## Mobile and Web App views
+
+Mobile installations keep the original soundboard view. Browser builds automatically
+open the separate **Web App** workspace with sound search, a responsive library,
+and an upload form. Wide browser windows also show a workspace sidebar.
+
+From this directory, start the browser version with:
+
+```sh
+flutter run -d chrome
+```
+
+Create a deployable website with `flutter build web --release`. Serve the contents
+of `build/web` using a web server; opening `index.html` directly is unsupported.
+For a host without Chrome, use `flutter run -d web-server` and open the printed URL.
+
+The same name opens the same library on web and mobile. Clearing browser site
+data forgets the remembered name; entering it again opens the same library.
+Firebase access rules must permit the app's reads and writes. Browser-supported
+audio formats and remote audio servers' CORS policies determine playback support.
+
+## Checks
+
 Run from this directory:
 
 ```sh
@@ -30,11 +56,11 @@ flutter test
 flutter run
 ```
 
-Tests cover installation identity, identity failure UI, sound mapping, and upload validation. File selection, actual playback, and Firestore writes require manual testing in a configured app.
+Tests cover removal of the legacy installation ID, name entry and persistence, shared name libraries, sound mapping, and upload validation. File selection, actual playback, and live Firestore writes require manual testing in a configured app.
 
 ## Device names
 
-Windows and macOS use the computer name. Android reads the system device name, falling back to its model if unavailable. iOS may return a generic name unless Apple's user-assigned-device-name entitlement is available. Web uses `Web browser`, because websites cannot read the computer name. The device-details button shows the stable ID for migration and support.
+The entered name selects the library on every platform. Hardware-name lookup, installation-ID generation, and the Android device-name channel have been removed. Only the optional remembered name is saved locally.
 
 ## Firebase data management
 
@@ -58,7 +84,13 @@ The migration command requires an explicit destination name and 32-character ins
 
 This is a newly created device group. A device name does not identify or automatically bind an actual installation. The SHao installation must be associated with the ID above before it can display these migrated sounds.
 
-The deployed security rules inspected on 2026-10-05 allow client access only before 2026-07-05. Administrator access succeeds independently of those rules; normal app access is blocked. Authentication and ownership rules must be configured before client read/upload verification can succeed. Do not reopen unrestricted access to work around the expiry.
+The previous security rules expired on 2026-07-05. A live unauthenticated profile read returned `403 PERMISSION_DENIED`, which blocked both registration and login. After owner approval on 2026-10-17, the replacement rules were deployed to `soundboard-95778`. Live checks confirmed profile creation, login lookup, saved `userName`/`libraryId`/`createdAt` attributes, and duplicate protection. The temporary verification profile was removed. The app now distinguishes permission failures from invalid usernames.
+
+The deployed `firestore.rules` replaces the expired blanket rule with access limited to `name_` libraries. It permits individual profile lookup and validated creation, restricted profile updates, sound reads and validated sound creation. Profile listing, deletion, legacy installation libraries and unrelated collections remain denied. This implements the requested name-only sharing model, not private authenticated accounts: anyone knowing a name can access its library. Future rule deployments require owner approval; deploy only these rules from this directory using `firebase deploy --only firestore:rules --project soundboard-95778`.
+
+With a valid Firebase CLI session, run `node tool/check_firestore_rules.mjs` to compile the proposed rules and check six access cases using Firebase's test API. It does not deploy rules or write database data.
+
+For an authorized live registration check, run `node tool/verify_name_registration.mjs --live`. It creates one unique temporary name profile, verifies its attributes and duplicate protection through client requests, and removes that profile using the administrator session. It never changes existing user profiles.
 
 ## Daily OneDrive backup
 

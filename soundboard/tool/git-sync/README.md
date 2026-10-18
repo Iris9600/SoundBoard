@@ -1,23 +1,19 @@
-# Solar scheduled pushes
+# Solar hourly sync
 
-Target: `https://github.com/Iris9600/SoundBoard`, branch `D-Time`, account `Solar-owo`.
+The owner authorizes automatic commits and pushes of eligible code changes every hour to `Iris9600/SoundBoard`, branch `D-Time`, as `Solar-owo`. `SoundBoard-Solar-HourlySync` runs on the hour Malaysia time, opens or reuses a PR to `main`, and leaves review and merge to the owner. This replaces the noon/midnight schedule. No eligible changes or pending retries means no action.
 
-`SoundBoard-Solar-TwiceDailyPush` runs at **12:00 noon and 00:00 midnight Malaysia time** (`Asia/Kuala_Lumpur`, UTC+08:00). It pushes committed changes only. The owner still confirms changes before commits and performs the GitHub review and merge unless explicitly delegated. The task never stages files, creates commits, pulls, merges or force-pushes.
+The task checks the current branch, upstream, Solar account and accepted write access. Commits use the Solar identity per command. It never switches branches, pulls, merges or force-pushes. An excluded staged file or interrupted Git operation stops the run. Network failures retry; pending PR state survives a completed push.
 
-The task checks the upstream URL, verifies that the saved credential belongs to Solar-owo (account ID 338115045), checks accepted write access, and skips a push if the remote already has the same commit. A rejected push is reported instead of rewriting remote history. Logs live in the ignored root `.git-sync/push.log`; no tokens are logged or stored in project files.
+Eligible files are code, build definitions, documentation and standard application assets under `soundboard/`, plus root `AGENTS.md` and `.gitignore`. Ignored files, private data exports, credentials, local backup configuration/logs and unrelated checkouts are excluded. Keep private material out of source files; filename exclusions cannot identify every possible secret. Automated runs do not run Flutter checks; inspect changes and run relevant checks before merging.
 
-Git Credential Manager must have a Solar login. The repository's local `credential.https://github.com.username` selects Solar for GitHub authentication. The owner's Git author settings remain unchanged; assistant-created commits use the Solar author and committer identity documented in root `AGENTS.md`. Author attribution and push authentication are separate.
-
-The Windows task runs hidden using the signed-in Windows user's credentials. This PC must be on, that user signed in, and Internet access available. Missed runs start when available, and failures retry up to three times at 15-minute intervals. This is a local Windows schedule, not a GitHub-hosted service.
+The task runs hidden as the signed-in Windows user. This PC must be on, the user signed in and Internet access available. Missed runs catch up when available. Failures retry three times at 15-minute intervals. Installation disables the previous twice-daily task. Logs and pending PR state live under ignored `.git-sync/`. Git Credential Manager supplies Solar authentication; the owner's Git identity remains unchanged.
 
 Run from the repository root:
 
 ```powershell
-node --test soundboard/tool/git-sync/push_commits.test.mjs
-node soundboard/tool/git-sync/push_commits.mjs
-Get-ScheduledTask -TaskName 'SoundBoard-Solar-TwiceDailyPush'
-Get-ScheduledTaskInfo -TaskName 'SoundBoard-Solar-TwiceDailyPush'
+node --test soundboard/tool/git-sync/push_commits.test.mjs soundboard/tool/git-sync/hourly_sync.test.mjs
+powershell -NoProfile -ExecutionPolicy Bypass -File soundboard/tool/git-sync/install_push_schedule.ps1
+node soundboard/tool/git-sync/hourly_sync.mjs
+Get-ScheduledTaskInfo -TaskName 'SoundBoard-Solar-HourlySync'
 Get-Content .git-sync/push.log -Tail 10
 ```
-
-The seven tests cover upstream validation, account/write-access checks, unchanged commits, branch-limited pushes and refusal to force-push. No test makes real GitHub writes.

@@ -4,13 +4,8 @@ import '../services/audio_file_picker.dart';
 import '../services/sound_repository.dart';
 
 class UploadPage extends StatefulWidget {
-  final String deviceId;
-  final String deviceName;
-  const UploadPage({
-    super.key,
-    required this.deviceId,
-    required this.deviceName,
-  });
+  final String userName;
+  const UploadPage({super.key, required this.userName});
 
   @override
   State<UploadPage> createState() => _UploadPageState();
@@ -65,8 +60,7 @@ class _UploadPageState extends State<UploadPage> {
 
     try {
       await SoundRepository(
-        deviceId: widget.deviceId,
-        deviceName: widget.deviceName,
+        userName: widget.userName,
       ).save(name: name, file: _selectedFile!);
 
       if (mounted) {
@@ -91,7 +85,12 @@ class _UploadPageState extends State<UploadPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Upload to Firestore')),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.sizeOf(context).width > 680
+              ? (MediaQuery.sizeOf(context).width - 640) / 2
+              : 20,
+          vertical: 20,
+        ),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
